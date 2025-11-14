@@ -40,6 +40,7 @@ public class ServerGUI extends JFrame {
         bottomPanel.add(startButton);
 
         stopButton = new JButton("Stop Server");
+        stopButton.addActionListener(e -> stopServer());
         stopButton.setEnabled(false);
         bottomPanel.add(stopButton);
 
@@ -48,7 +49,7 @@ public class ServerGUI extends JFrame {
         setLocationRelativeTo(null);
         setVisible(true);
     }
-
+    private FileTransferServer server;
     private void startServer() {
         try {
             FileTransferServer server = new FileTransferServer(logArea);
@@ -66,6 +67,24 @@ public class ServerGUI extends JFrame {
             e.printStackTrace();
         }
     }
+    private void stopServer() {
+        try {
+            if (server != null) {
+                server.stop();
+                server = null;
+            }
+            startButton.setEnabled(true);
+            stopButton.setEnabled(false);
+            statusLabel.setText("Status: Stopped");
+            statusLabel.setForeground(Color.RED);
+        } catch (Exception e) {
+            JOptionPane.showMessageDialog(this,
+                    "Error stopping server: " + e.getMessage(),
+                    "Error", JOptionPane.ERROR_MESSAGE);
+            e.printStackTrace();
+        }
+    }
+
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new ServerGUI());

@@ -7,6 +7,7 @@ import java.security.*;
 import javax.swing.*;
 
 public class FileTransferServer {
+    private volatile boolean running = true;
     private static final int PORT = 5000;
     private ServerSocket serverSocket;
     private HybridCrypto crypto;
@@ -20,22 +21,34 @@ public class FileTransferServer {
         log("RSA Key Pair generated");
     }
 
+    public void stop() {
+        // Example logic: set running = false and close ServerSocket
+        running = false;
+        try {
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                serverSocket.close();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
     public void start() {
         new Thread(() -> {
-            while (true) {
+            running = true; // Ensure it's true when starting
+            while (running) {
+                // accept connections
                 try {
                     Socket clientSocket = serverSocket.accept();
-                    log("Client connected: " + clientSocket.getInetAddress());
-
-                    // Handle client in separate thread
-                    new Thread(new ClientHandler(clientSocket)).start();
-
+                    // handle new client
                 } catch (IOException e) {
-                    log("Error accepting connection: " + e.getMessage());
+                    if (running) e.printStackTrace(); // ignore errors if stopping
                 }
             }
         }).start();
     }
+
 
     private class ClientHandler implements Runnable {
         private Socket socket;
