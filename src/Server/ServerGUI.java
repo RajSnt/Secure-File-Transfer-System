@@ -1,92 +1,243 @@
+//package Server;
+//import javax.swing.*;
+//import java.awt.*;
+//
+//public class ServerGUI extends JFrame {
+//    private JTextArea logArea;
+//    private JButton startButton;
+//    private JButton stopButton;
+//    private JLabel statusLabel;
+//
+//    public ServerGUI() {
+//        setTitle("Secure File Transfer - Server");
+//        setSize(700, 400);
+//        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+//        setLayout(new BorderLayout(10, 10));
+//
+//        // Top panel - Status
+//        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+//        topPanel.setBorder(BorderFactory.createTitledBorder("Server Status"));
+//
+//        statusLabel = new JLabel("Status: Stopped");
+//        statusLabel.setFont(new Font("Arial", Font.BOLD, 14));
+//        topPanel.add(statusLabel);
+//
+//        add(topPanel, BorderLayout.NORTH);
+//
+//        // Center panel - Log area
+//        logArea = new JTextArea();
+//        logArea.setEditable(false);
+//        logArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+//        JScrollPane scrollPane = new JScrollPane(logArea);
+//        scrollPane.setBorder(BorderFactory.createTitledBorder("Server Log"));
+//        add(scrollPane, BorderLayout.CENTER);
+//
+//        // Bottom panel - Controls
+//        JPanel bottomPanel = new JPanel(new FlowLayout());
+//
+//        startButton = new JButton("Start Server");
+//        startButton.addActionListener(e -> startServer());
+//        bottomPanel.add(startButton);
+//
+//        stopButton = new JButton("Stop Server");
+//        stopButton.addActionListener(e -> stopServer());
+//        stopButton.setEnabled(false);
+//        bottomPanel.add(stopButton);
+//
+//        add(bottomPanel, BorderLayout.SOUTH);
+//
+//        setLocationRelativeTo(null);
+//        setVisible(true);
+//    }
+//    private FileTransferServer server;
+//    private void startServer() {
+//        try {
+//            FileTransferServer server = new FileTransferServer(logArea);
+//            server.start();
+//
+//            startButton.setEnabled(false);
+//            stopButton.setEnabled(true);
+//            statusLabel.setText("Status: Running on port 5000");
+//            statusLabel.setForeground(Color.GREEN);
+//
+//        } catch (Exception e) {
+//            JOptionPane.showMessageDialog(this,
+//                    "Error starting server: " + e.getMessage(),
+//                    "Error", JOptionPane.ERROR_MESSAGE);
+//            e.printStackTrace();
+//        }
+//    }
+//    private void stopServer() {
+//        try {
+//            if (server != null) {
+//                server.stop();
+//                server = null;
+//            }
+//            startButton.setEnabled(true);
+//            stopButton.setEnabled(false);
+//            statusLabel.setText("Status: Stopped");
+//            statusLabel.setForeground(Color.RED);
+//        } catch (Exception e) {
+//            JOptionPane.showMessageDialog(this,
+//                    "Error stopping server: " + e.getMessage(),
+//                    "Error", JOptionPane.ERROR_MESSAGE);
+//            e.printStackTrace();
+//        }
+//    }
+//
+//
+//    public static void main(String[] args) {
+//        SwingUtilities.invokeLater(() -> new ServerGUI());
+//    }
+//}
 package Server;
+
 import javax.swing.*;
 import java.awt.*;
+import java.io.*;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.util.Base64;
+
+import Crypto.AESEncryption;
+import Crypto.RSAKeyManager;
 
 public class ServerGUI extends JFrame {
-    private JTextArea logArea;
+    private JTextField portField;
     private JButton startButton;
-    private JButton stopButton;
     private JLabel statusLabel;
+    private JTextArea logArea;
+    private KeyPair rsaKeyPair;
 
     public ServerGUI() {
-        setTitle("Secure File Transfer - Server");
-        setSize(700, 400);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        setLayout(new BorderLayout(10, 10));
+        setTitle("Secure File Transfer - Server (Hybrid)");
+        setSize(480, 320);
+        setDefaultCloseOperation(EXIT_ON_CLOSE);
+        setLayout(null);
 
-        // Top panel - Status
-        JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        topPanel.setBorder(BorderFactory.createTitledBorder("Server Status"));
+        JLabel portLabel = new JLabel("Port");
+        portLabel.setBounds(30, 30, 50, 25);
+        add(portLabel);
 
-        statusLabel = new JLabel("Status: Stopped");
-        statusLabel.setFont(new Font("Arial", Font.BOLD, 14));
-        topPanel.add(statusLabel);
-
-        add(topPanel, BorderLayout.NORTH);
-
-        // Center panel - Log area
-        logArea = new JTextArea();
-        logArea.setEditable(false);
-        logArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        JScrollPane scrollPane = new JScrollPane(logArea);
-        scrollPane.setBorder(BorderFactory.createTitledBorder("Server Log"));
-        add(scrollPane, BorderLayout.CENTER);
-
-        // Bottom panel - Controls
-        JPanel bottomPanel = new JPanel(new FlowLayout());
+        portField = new JTextField("5000");
+        portField.setBounds(90, 30, 70, 25);
+        add(portField);
 
         startButton = new JButton("Start Server");
-        startButton.addActionListener(e -> startServer());
-        bottomPanel.add(startButton);
+        startButton.setBounds(180, 30, 120, 25);
+        add(startButton);
 
-        stopButton = new JButton("Stop Server");
-        stopButton.addActionListener(e -> stopServer());
-        stopButton.setEnabled(false);
-        bottomPanel.add(stopButton);
+        statusLabel = new JLabel("Status: Server is stopped");
+        statusLabel.setBounds(30, 60, 370, 25);
+        add(statusLabel);
 
-        add(bottomPanel, BorderLayout.SOUTH);
+        logArea = new JTextArea();
+        logArea.setBounds(30, 90, 400, 110);
+        logArea.setEditable(false);
+        add(logArea);
+
+        startButton.addActionListener(e -> startServerRoutine());
 
         setLocationRelativeTo(null);
         setVisible(true);
-    }
-    private FileTransferServer server;
-    private void startServer() {
+
+        // Generate RSA key pair on launch using your new RSAKeyManager code
         try {
-            FileTransferServer server = new FileTransferServer(logArea);
-            server.start();
+            rsaKeyPair = RSAKeyManager.generateKeyPair();
+            logArea.setText("RSA key pair generated.\n");
+            System.out.println("RSA Public Key: " + Base64.getEncoder().encodeToString(rsaKeyPair.getPublic().getEncoded()));
+            System.out.println("RSA Private Key: " + Base64.getEncoder().encodeToString(rsaKeyPair.getPrivate().getEncoded()));
 
-            startButton.setEnabled(false);
-            stopButton.setEnabled(true);
-            statusLabel.setText("Status: Running on port 5000");
-            statusLabel.setForeground(Color.GREEN);
-
-        } catch (Exception e) {
-            JOptionPane.showMessageDialog(this,
-                    "Error starting server: " + e.getMessage(),
-                    "Error", JOptionPane.ERROR_MESSAGE);
-            e.printStackTrace();
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "RSA keypair generation failed: " + ex.getMessage());
+            ex.printStackTrace();
+            System.exit(1);
         }
     }
-    private void stopServer() {
+
+    private void startServerRoutine() {
+        int port;
         try {
-            if (server != null) {
-                server.stop();
-                server = null;
+            port = Integer.parseInt(portField.getText().trim());
+        } catch (NumberFormatException ex) {
+            statusLabel.setText("Invalid port number!");
+            return;
+        }
+        startButton.setEnabled(false);
+        statusLabel.setText("Status: Server is listening");
+        logArea.append("Listening on port " + port + "\n");
+
+        new Thread(() -> runServer(port)).start();
+    }
+
+    private void runServer(int port) {
+        try (ServerSocket serverSocket = new ServerSocket(port)) {
+            while (true) {
+                Socket client = serverSocket.accept();
+                SwingUtilities.invokeLater(() -> logArea.append("\nClient connected: " + client.getInetAddress()));
+                new Thread(() -> receiveHybridFile(client)).start();
             }
-            startButton.setEnabled(true);
-            stopButton.setEnabled(false);
-            statusLabel.setText("Status: Stopped");
-            statusLabel.setForeground(Color.RED);
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this,
-                    "Error stopping server: " + e.getMessage(),
-                    "Error", JOptionPane.ERROR_MESSAGE);
-            e.printStackTrace();
+            SwingUtilities.invokeLater(() -> {
+                logArea.append("\nServer error: " + e.getMessage());
+                startButton.setEnabled(true);
+                statusLabel.setText("Status: Server is stopped");
+            });
         }
     }
 
+    private void receiveHybridFile(Socket client) {
+        try {
+            ObjectOutputStream out = new ObjectOutputStream(client.getOutputStream());
+            ObjectInputStream in = new ObjectInputStream(client.getInputStream());
+
+            // 1. Send server public key to client
+            out.writeObject(rsaKeyPair.getPublic());
+            out.flush();
+
+            // 2. Receive encrypted AES key, IV, file length and file bytes
+            // Receive the filename from the client
+            String fileName = (String) in.readObject();
+            byte[] encryptedAesKey = (byte[]) in.readObject();
+            byte[] iv = (byte[]) in.readObject();
+            int encFileLen = in.readInt();
+            byte[] encryptedFile = new byte[encFileLen];
+            in.readFully(encryptedFile);
+
+            // 3. Decrypt AES key using server private key
+            byte[] aesKeyBytes = RSAKeyManager.decryptAESKey(encryptedAesKey, rsaKeyPair.getPrivate());
+            javax.crypto.SecretKey aesKey = new javax.crypto.spec.SecretKeySpec(aesKeyBytes, "AES");
+
+            // 4. Decrypt the file using AES key and IV
+            byte[] decrypted = AESEncryption.decryptFile(encryptedFile, aesKey, iv);
+
+            // 5. Save decrypted file
+            File dir = new File("server_received");
+            if (!dir.exists()) dir.mkdirs();
+            File outFile = new File(dir, "decrypted_" + fileName);
+            java.nio.file.Files.write(outFile.toPath(), decrypted);
+
+
+            SwingUtilities.invokeLater(() -> logArea.append("\nSaved decrypted file: " + fileName
+                    + " (" + decrypted.length + " bytes)"));
+
+            in.close();
+            out.close();
+            client.close();
+        } catch (Exception e) {
+            SwingUtilities.invokeLater(() ->
+                    logArea.append("\nDecryption failed: " + e.getMessage()));
+            e.printStackTrace();
+        }
+    }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> new ServerGUI());
+        SwingUtilities.invokeLater(ServerGUI::new);
     }
 }
+
+
+

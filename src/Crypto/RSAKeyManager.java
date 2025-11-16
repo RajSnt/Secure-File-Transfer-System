@@ -1,20 +1,14 @@
 package Crypto;
 import java.security.*;
-import java.security.spec.*;
 import javax.crypto.Cipher;
 
 public class RSAKeyManager {
-    private static final int KEY_SIZE = 2048;
     private KeyPair keyPair;
 
     public RSAKeyManager() throws NoSuchAlgorithmException {
-        generateKeyPair();
-    }
-
-    private void generateKeyPair() throws NoSuchAlgorithmException {
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
-        keyGen.initialize(KEY_SIZE, SecureRandom.getInstanceStrong());
-        this.keyPair = keyGen.generateKeyPair();
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        this.keyPair = kpg.generateKeyPair();
     }
 
     public PublicKey getPublicKey() {
@@ -25,19 +19,21 @@ public class RSAKeyManager {
         return keyPair.getPrivate();
     }
 
-    // Encrypt AES key with RSA public key
-    public byte[] encryptAESKey(byte[] aesKey, PublicKey publicKey)
-            throws Exception {
+    public static KeyPair generateKeyPair() throws NoSuchAlgorithmException {
+        KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
+        kpg.initialize(2048);
+        return kpg.generateKeyPair();
+    }
+
+    public static byte[] encryptAESKey(byte[] aesKey, PublicKey pubKey) throws Exception {
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-        cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+        cipher.init(Cipher.ENCRYPT_MODE, pubKey);
         return cipher.doFinal(aesKey);
     }
 
-    // Decrypt AES key with RSA private key
-    public byte[] decryptAESKey(byte[] encryptedKey, PrivateKey privateKey)
-            throws Exception {
+    public static byte[] decryptAESKey(byte[] encryptedAesKey, PrivateKey privKey) throws Exception {
         Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
-        cipher.init(Cipher.DECRYPT_MODE, privateKey);
-        return cipher.doFinal(encryptedKey);
+        cipher.init(Cipher.DECRYPT_MODE, privKey);
+        return cipher.doFinal(encryptedAesKey);
     }
 }
